@@ -200,9 +200,7 @@ pip install -r requirements.txt --upgrade
 - **Avg File Size**: 60-70 lines
 - **Max File Size**: 79 lines
 
-## License
 
-MIT License - See LICENSE file
 
 ## Support
 
