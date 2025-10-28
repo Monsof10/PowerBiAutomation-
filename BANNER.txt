@@ -1,0 +1,118 @@
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║                    ██████╗  ██████╗ ██╗    ██╗███████╗██████╗               ║
+║                    ██╔══██╗██╔═══██╗██║    ██║██╔════╝██╔══██╗              ║
+║                    ██████╔╝██║   ██║██║ █╗ ██║█████╗  ██████╔╝              ║
+║                    ██╔═══╝ ██║   ██║██║███╗██║██╔══╝  ██╔══██╗              ║
+║                    ██║     ╚██████╔╝╚███╔███╔╝███████╗██║  ██║              ║
+║                    ╚═╝      ╚═════╝  ╚══╝╚══╝ ╚══════╝╚═╝  ╚═╝              ║
+║                                                                              ║
+║                         ██████╗ ██╗                                          ║
+║                         ██╔══██╗██║                                          ║
+║                         ██████╔╝██║                                          ║
+║                         ██╔══██╗██║                                          ║
+║                         ██████╔╝██║                                          ║
+║                         ╚═════╝ ╚═╝                                          ║
+║                                                                              ║
+║                    █████╗ ██╗   ██╗████████╗ ██████╗                        ║
+║                   ██╔══██╗██║   ██║╚══██╔══╝██╔═══██╗                       ║
+║                   ███████║██║   ██║   ██║   ██║   ██║                       ║
+║                   ██╔══██║██║   ██║   ██║   ██║   ██║                       ║
+║                   ██║  ██║╚██████╔╝   ██║   ╚██████╔╝                       ║
+║                   ╚═╝  ╚═╝ ╚═════╝    ╚═╝    ╚═════╝                        ║
+║                                                                              ║
+╟──────────────────────────────────────────────────────────────────────────────╢
+║                                                                              ║
+║                     Power BI Report Automation System                       ║
+║                                                                              ║
+║                     🤖 Automate  |  📄 Export  |  📧 Send                   ║
+║                                                                              ║
+╟──────────────────────────────────────────────────────────────────────────────╢
+║                                                                              ║
+║  ✅ Browser Automation     - Log into Power BI automatically                ║
+║  ✅ PDF Export             - Download reports as PDF                        ║
+║  ✅ PDF Splitting          - Split into individual pages                    ║
+║  ✅ Visual Preview         - Streamlit interface with thumbnails            ║
+║  ✅ Email Distribution     - Send to multiple recipients                    ║
+║  ✅ Progress Tracking      - Real-time status updates                       ║
+║  ✅ Error Handling         - Comprehensive error management                 ║
+║  ✅ Activity Logging       - Detailed logs for all operations               ║
+║                                                                              ║
+╟──────────────────────────────────────────────────────────────────────────────╢
+║                                                                              ║
+║  📦 COMPLETE PACKAGE                                                         ║
+║                                                                              ║
+║     • 6 Python Modules         (~1,300 lines of code)                       ║
+║     • 7 Documentation Files    (~2,900 lines)                               ║
+║     • 3 Setup Scripts          (Automated installation)                     ║
+║     • 10+ Working Examples     (Ready to use)                               ║
+║     • Comprehensive Testing    (Verification tools)                         ║
+║                                                                              ║
+╟──────────────────────────────────────────────────────────────────────────────╢
+║                                                                              ║
+║  🚀 QUICK START                                                              ║
+║                                                                              ║
+║     1. Read START_HERE.md or QUICKSTART.md                                  ║
+║     2. Run ./setup.sh (or setup.bat on Windows)                             ║
+║     3. Configure your .env file                                             ║
+║     4. Run: streamlit run main.py                                           ║
+║     5. Click "Start Automation" and enjoy! 🎉                               ║
+║                                                                              ║
+╟──────────────────────────────────────────────────────────────────────────────╢
+║                                                                              ║
+║  📚 DOCUMENTATION                                                            ║
+║                                                                              ║
+║     START_HERE.md        → Begin here!                                      ║
+║     QUICKSTART.md        → 5-minute setup guide                             ║
+║     README.md            → Complete documentation                           ║
+║     EXAMPLES.md          → 10+ usage examples                               ║
+║     TROUBLESHOOTING.md   → Fix common issues                                ║
+║     ARCHITECTURE.md      → System design                                    ║
+║     PROJECT_SUMMARY.md   → Overview                                         ║
+║                                                                              ║
+╟──────────────────────────────────────────────────────────────────────────────╢
+║                                                                              ║
+║  🎯 FEATURES                                                                 ║
+║                                                                              ║
+║     ⚡ No Power BI Premium Required                                         ║
+║     🔐 Secure Configuration Management                                      ║
+║     🎨 Beautiful Web Interface                                              ║
+║     📊 Real-time Progress Tracking                                          ║
+║     🔧 Highly Customizable                                                  ║
+║     📝 Detailed Activity Logs                                               ║
+║     🐛 Comprehensive Error Handling                                         ║
+║     ✨ Production Ready                                                     ║
+║                                                                              ║
+╟──────────────────────────────────────────────────────────────────────────────╢
+║                                                                              ║
+║  💡 TECHNOLOGY STACK                                                         ║
+║                                                                              ║
+║     • Python 3.8+         • Playwright        • pypdf                       ║
+║     • Streamlit           • yagmail           • pdf2image                   ║
+║     • python-dotenv       • Pillow            • pandas                      ║
+║                                                                              ║
+╟──────────────────────────────────────────────────────────────────────────────╢
+║                                                                              ║
+║  🎊 BUILT WITH ❤️ FOR AUTOMATION                                            ║
+║                                                                              ║
+║     Version: 1.0.0                                                          ║
+║     Date: October 28, 2025                                                  ║
+║     Status: Production Ready                                                ║
+║     Quality: Professional Grade                                             ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+   Ready to automate? Start with: START_HERE.md or QUICKSTART.md
+
+   Need help? Check TROUBLESHOOTING.md
+
+   Want examples? See EXAMPLES.md
+
+   Understand the system? Read ARCHITECTURE.md
+
+
+   🚀 Let's automate some reports! 🚀
+
+
