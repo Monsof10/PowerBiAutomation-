@@ -2,7 +2,7 @@
 
 ## Code Standards
 
-This project follows NASA coding standards and clean code principles:
+This project clean code principles:
 
 ### Principles
 
@@ -60,31 +60,6 @@ def process_report(report_url: str, output_path: str) -> str:
 6. **Push** to your fork
 7. **Submit** a pull request
 
-## Commit Messages
-
-Format:
-```
-type: brief description
-
-Detailed explanation if needed
-```
-
-Types:
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `refactor`: Code refactoring
-- `test`: Adding tests
-- `chore`: Maintenance tasks
-
-Example:
-```
-feat: add support for multiple reports
-
-- Added batch processing capability
-- Updated configuration for multiple URLs
-- Added tests for batch processing
-```
 
 ## Testing
 
@@ -101,17 +76,4 @@ python your_module.py
 pylint your_module.py
 ```
 
-## Pull Request Checklist
-
-- [ ] Code follows style guidelines
-- [ ] All functions have docstrings
-- [ ] Error handling is comprehensive
-- [ ] Changes are tested
-- [ ] Documentation is updated
-- [ ] Commit messages are clear
-- [ ] No sensitive data in commits
-
-## Questions?
-
-Open an issue for discussion before starting major changes.
 
