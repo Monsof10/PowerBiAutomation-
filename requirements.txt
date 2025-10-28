@@ -5,6 +5,10 @@ pypdf>=3.17.0
 yagmail>=0.15.293
 python-dotenv>=1.0.0
 
+# Power BI API
+msal>=1.25.0
+requests>=2.31.0
+
 # PDF processing
 pdf2image>=1.16.3
 Pillow>=10.1.0

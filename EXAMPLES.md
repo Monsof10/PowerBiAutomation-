@@ -1,588 +1,241 @@
 # Usage Examples
 
-## Example 1: Basic Usage
+## Basic Usage
 
-### Step-by-Step First Run
-
-```bash
-# 1. Setup
-./setup.sh  # or setup.bat on Windows
-
-# 2. Configure
-cp env.example .env
-nano .env  # or use your favorite editor
-
-# 3. Add credentials
-# POWERBI_EMAIL=john@company.com
-# POWERBI_PASSWORD=MySecurePassword123
-# POWERBI_REPORT_URL=https://app.powerbi.com/groups/abc-123/reports/def-456
-# EMAIL_ADDRESS=john@gmail.com
-# EMAIL_PASSWORD=abcd efgh ijkl mnop  # Gmail App Password
-
-# 4. Test setup
-python test_setup.py
-
-# 5. Run application
-streamlit run main.py
-
-# 6. In browser (http://localhost:8501):
-# - Click "Start Automation"
-# - Wait for completion (~2-5 minutes)
-# - Select PDF pages to send
-# - Add recipient emails
-# - Click "Send Emails"
-```
-
----
-
-## Example 2: Using Individual Modules
-
-### Power BI Automation Only
+### Export Power BI Report
 
 ```python
-from powerbi_automation import run_automation
+import powerbi
 
-# Export a report
-pdf_path = run_automation(
-    email="user@company.com",
-    password="password",
+# Export report to PDF
+pdf_path = powerbi.export_report(
+    report_url="https://app.powerbi.com/groups/workspace/reports/report-id"
+)
+print(f"PDF saved: {pdf_path}")
+
+# With device code authentication (for MFA)
+pdf_path = powerbi.export_report(
     report_url="https://app.powerbi.com/...",
-    apply_filter=True,
-    headless=False  # Show browser
+    use_device_code=True
+)
+```
+
+### Process PDF
+
+```python
+import pdf_service
+
+# Split PDF into pages
+pdf_files, thumbnails = pdf_service.split_pdf(
+    pdf_path="report.pdf",
+    prefix="monthly_report",
+    generate_thumbnails=True
 )
 
-print(f"PDF saved to: {pdf_path}")
+# Get PDF info
+info = pdf_service.get_pdf_info("report.pdf")
+print(f"Pages: {info['pages']}, Size: {info['size_mb']:.2f} MB")
 ```
 
-### PDF Processing Only
+### Send Emails
 
 ```python
-from pdf_handler import PDFHandler
+import email_service_facade
 
-# Split a PDF
-handler = PDFHandler('my_report.pdf')
-
-# Get info
-info = handler.get_pdf_info()
-print(f"Pages: {info['pages']}")
-
-# Split into pages
-split_pdfs = handler.split_pdf(prefix="monthly_report")
-print(f"Created {len(split_pdfs)} PDFs")
-
-# Generate thumbnails
-thumbnails = handler.generate_thumbnails()
-print(f"Created {len(thumbnails)} thumbnails")
-
-# Cleanup when done
-handler.cleanup_all()
-```
-
-### Email Sending Only
-
-```python
-from email_sender import EmailSender
-
-# Send email
-sender = EmailSender()
-
-sender.send_email(
-    to_addresses=['client1@example.com', 'client2@example.com'],
-    subject='Monthly Report - October 2025',
-    body='Please find attached your monthly report.',
-    attachments=['report_page_1.pdf', 'report_page_2.pdf']
+# Send PDFs to recipients
+results = email_service_facade.send_pdfs(
+    pdf_files=["page_1.pdf", "page_2.pdf"],
+    recipients=["user1@company.com", "user2@company.com"],
+    subject="Monthly Report",
+    body="Please find attached your report."
 )
 
-sender.close()
+print(f"Sent: {len(results['sent'])}")
+print(f"Failed: {len(results['failed'])}")
 ```
 
----
-
-## Example 3: Custom Workflow
+## Complete Workflow
 
 ```python
-"""
-Custom workflow: Export report, split, and send first 3 pages only
-"""
-from powerbi_automation import PowerBIAutomation
-from pdf_handler import PDFHandler
-from email_sender import EmailSender
+import powerbi
+import pdf_service
+import email_service_facade
 
-# Step 1: Get report from Power BI
-automation = PowerBIAutomation(headless=False)
-pdf_path = automation.run_full_automation(apply_filter=True)
-
-# Step 2: Split PDF
-handler = PDFHandler(pdf_path)
-all_pdfs = handler.split_pdf()
-
-# Step 3: Select first 3 pages only
-selected_pdfs = all_pdfs[:3]
-
-# Step 4: Send emails
-sender = EmailSender()
-sender.send_email(
-    to_addresses='manager@company.com',
-    subject='Report Summary - First 3 Pages',
-    body='Here are the key pages from today\'s report.',
-    attachments=selected_pdfs
+# 1. Export report
+pdf_path = powerbi.export_report(
+    "https://app.powerbi.com/groups/workspace/reports/report-id"
 )
-sender.close()
 
-print("Done! Sent first 3 pages only.")
+# 2. Split PDF
+pdf_files, _ = pdf_service.split_pdf(pdf_path)
+
+# 3. Send first 3 pages
+results = email_service_facade.send_pdfs(
+    pdf_files[:3],
+    ["manager@company.com"],
+    "Report Summary",
+    "Key pages from today's report"
+)
 ```
 
----
+## Advanced Usage
 
-## Example 4: Batch Processing Multiple Recipients
+### Custom Authentication
 
 ```python
-"""
-Send different pages to different recipients
-"""
-from email_sender import EmailSender
+from auth.powerbi_auth import PowerBIAuth
+from api.powerbi_client import PowerBIClient
 
-sender = EmailSender()
+# Authenticate
+auth = PowerBIAuth("user@company.com", "password")
+token = auth.get_token_device_code()  # For MFA
 
-# Configuration for different recipients
-email_configs = [
-    {
-        'to': 'sales@company.com',
-        'subject': 'Sales Report',
-        'body': 'Here is your sales data.',
-        'attachments': ['report_page_1.pdf', 'report_page_2.pdf']
-    },
-    {
-        'to': 'marketing@company.com',
-        'subject': 'Marketing Report',
-        'body': 'Here is your marketing data.',
-        'attachments': ['report_page_3.pdf', 'report_page_4.pdf']
-    },
-    {
-        'to': 'executive@company.com',
-        'subject': 'Executive Summary',
-        'body': 'Here is the complete report.',
-        'attachments': ['report_page_1.pdf', 'report_page_2.pdf', 
-                       'report_page_3.pdf', 'report_page_4.pdf']
-    }
-]
+# Use API client directly
+client = PowerBIClient(token)
+reports = client.get_reports()
 
-# Send all emails
-results = sender.send_multiple_emails(email_configs)
-
-print(f"Sent: {results['sent']}")
-print(f"Failed: {results['failed']}")
-
-sender.close()
+for report in reports:
+    print(f"{report['name']}: {report['webUrl']}")
 ```
 
----
+### Custom PDF Processing
 
-## Example 5: Scheduled Daily Reports
+```python
+from pdf.splitter import PDFSplitter
+from pdf.thumbnail_generator import ThumbnailGenerator
 
-### Using cron (Linux/Mac)
+# Split PDF
+splitter = PDFSplitter("report.pdf", "output/")
+pdf_files = splitter.split(prefix="custom_prefix")
 
-Create a script `daily_report.py`:
+# Generate thumbnails with custom size
+generator = ThumbnailGenerator(size=(300, 400), dpi=200)
+thumbnails = generator.generate(pdf_files)
+```
+
+### Custom Email Service
+
+```python
+from email.smtp_client import SMTPClient
+from email.email_service import EmailService
+
+# Create SMTP client
+smtp = SMTPClient(
+    email_address="sender@company.com",
+    email_password="password",
+    smtp_server="smtp.office365.com",
+    smtp_port=587
+)
+
+# Create email service
+service = EmailService(smtp)
+
+# Send emails
+results = service.send_pdfs(
+    pdf_files=["report.pdf"],
+    recipients=["recipient@company.com"],
+    subject="Report",
+    body="Your report"
+)
+
+service.close()
+```
+
+## Scheduled Automation
+
+Create `daily_automation.py`:
 
 ```python
 #!/usr/bin/env python3
-"""
-Daily automated report at 8 AM
-"""
-import sys
-from pathlib import Path
-
-# Add project to path
-sys.path.insert(0, str(Path(__file__).parent))
-
-from powerbi_automation import run_automation
-from pdf_handler import split_pdf_file
-from email_sender import send_email_with_attachments
+import powerbi
+import pdf_service
+import email_service_facade
 import config
+from datetime import datetime
 
 def main():
     try:
-        # 1. Get report
-        print("Getting Power BI report...")
-        pdf_path = run_automation(headless=True)  # Run in background
+        # Export report
+        pdf_path = powerbi.export_report(config.POWERBI_REPORT_URL)
         
-        # 2. Split
-        print("Processing PDF...")
-        split_pdfs, _ = split_pdf_file(pdf_path)
+        # Split PDF
+        pdf_files, _ = pdf_service.split_pdf(pdf_path)
         
-        # 3. Send
-        print("Sending emails...")
-        send_email_with_attachments(
-            to_addresses=config.DEFAULT_RECIPIENTS,
-            subject=f"Daily Report - {datetime.now().strftime('%Y-%m-%d')}",
-            body="Please find attached today's report.",
-            attachments=split_pdfs
+        # Send emails
+        email_service_facade.send_pdfs(
+            pdf_files,
+            config.DEFAULT_RECIPIENTS,
+            f"Daily Report - {datetime.now().strftime('%Y-%m-%d')}",
+            "Please find attached today's report."
         )
         
-        print("✅ Daily report sent successfully!")
-        return 0
-        
+        print("✅ Daily report sent")
     except Exception as e:
         print(f"❌ Error: {e}")
-        return 1
 
-if __name__ == '__main__':
-    sys.exit(main())
+if __name__ == "__main__":
+    main()
 ```
 
-Add to crontab:
+Schedule with cron (Linux/Mac):
 ```bash
-# Edit crontab
-crontab -e
-
-# Add this line (runs at 8 AM daily)
-0 8 * * * cd /home/user/powerbiAutomation && ./venv/bin/python daily_report.py >> logs/daily.log 2>&1
+# Run daily at 8 AM
+0 8 * * * cd /path/to/project && ./venv/bin/python daily_automation.py
 ```
 
-### Using Task Scheduler (Windows)
-
-1. Create `daily_report.bat`:
-```batch
-@echo off
-cd C:\Users\YourUser\powerbiAutomation
-call venv\Scripts\activate
-python daily_report.py >> logs\daily.log 2>&1
-```
-
-2. Open Task Scheduler
-3. Create Task:
-   - Trigger: Daily at 8:00 AM
-   - Action: Run `daily_report.bat`
-
----
-
-## Example 6: Error Handling
-
-```python
-"""
-Robust error handling example
-"""
-from powerbi_automation import PowerBIAutomation
-from email_sender import EmailSender
-import logging
-
-logger = logging.getLogger(__name__)
-
-def automated_workflow():
-    automation = None
-    sender = None
-    
-    try:
-        # Try automation
-        logger.info("Starting automation...")
-        automation = PowerBIAutomation(headless=False)
-        automation.start_browser()
-        
-        try:
-            automation.login()
-        except Exception as e:
-            logger.error(f"Login failed: {e}")
-            # Take screenshot for debugging
-            automation.page.screenshot(path='login_error.png')
-            raise
-        
-        try:
-            automation.navigate_to_report()
-        except Exception as e:
-            logger.error(f"Navigation failed: {e}")
-            automation.page.screenshot(path='nav_error.png')
-            raise
-        
-        try:
-            pdf_path = automation.export_to_pdf()
-        except Exception as e:
-            logger.error(f"Export failed: {e}")
-            automation.page.screenshot(path='export_error.png')
-            raise
-        
-        logger.info(f"Success! PDF: {pdf_path}")
-        return pdf_path
-        
-    except Exception as e:
-        logger.error(f"Workflow failed: {e}", exc_info=True)
-        
-        # Send error notification email
-        try:
-            sender = EmailSender()
-            sender.send_email(
-                to_addresses='admin@company.com',
-                subject='Power BI Automation Failed',
-                body=f'The automation failed with error: {str(e)}'
-            )
-        except:
-            logger.error("Could not send error email")
-        
-        raise
-        
-    finally:
-        # Cleanup
-        if automation:
-            automation.close()
-        if sender:
-            sender.close()
-
-if __name__ == '__main__':
-    try:
-        automated_workflow()
-    except Exception as e:
-        print(f"Failed: {e}")
-        exit(1)
-```
-
----
-
-## Example 7: Custom Date Filter
-
-```python
-"""
-Custom date filter for specific report structure
-"""
-from powerbi_automation import PowerBIAutomation
-import time
-
-class CustomPowerBIAutomation(PowerBIAutomation):
-    """Extended automation with custom filter"""
-    
-    def apply_custom_date_filter(self, start_date, end_date):
-        """
-        Apply specific date range
-        Args:
-            start_date: "2025-10-01"
-            end_date: "2025-10-31"
-        """
-        try:
-            # Find date filter by specific attribute
-            date_filter = self.page.locator('[aria-label="Date Range"]').first
-            date_filter.click()
-            time.sleep(2)
-            
-            # Clear existing dates
-            clear_button = self.page.locator('button:has-text("Clear")').first
-            if clear_button.is_visible(timeout=5000):
-                clear_button.click()
-                time.sleep(1)
-            
-            # Enter start date
-            start_input = self.page.locator('input[aria-label="Start date"]').first
-            start_input.fill(start_date)
-            time.sleep(1)
-            
-            # Enter end date
-            end_input = self.page.locator('input[aria-label="End date"]').first
-            end_input.fill(end_date)
-            time.sleep(1)
-            
-            # Apply filter
-            apply_button = self.page.locator('button:has-text("Apply")').first
-            apply_button.click()
-            time.sleep(3)
-            
-            logger.info(f"Applied date range: {start_date} to {end_date}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Custom filter failed: {e}")
-            return False
-
-# Usage
-automation = CustomPowerBIAutomation()
-automation.start_browser()
-automation.login()
-automation.navigate_to_report()
-automation.apply_custom_date_filter("2025-10-01", "2025-10-31")
-pdf_path = automation.export_to_pdf()
-automation.close()
-```
-
----
-
-## Example 8: Testing Individual Components
+## Testing
 
 ### Test Power BI Connection
 
 ```python
-"""test_powerbi.py - Test Power BI login only"""
-from powerbi_automation import PowerBIAutomation
+import powerbi
 
-automation = PowerBIAutomation(headless=False)
-automation.start_browser()
+# List available reports
+reports = powerbi.list_reports()
+for report in reports:
+    print(f"- {report['name']}")
 
-try:
-    automation.login()
-    print("✅ Login successful!")
-    input("Press Enter to close browser...")
-finally:
-    automation.close()
+# List workspaces
+workspaces = powerbi.list_workspaces()
+for ws in workspaces:
+    print(f"- {ws['name']}")
 ```
 
-### Test Email Configuration
+### Test Email
 
 ```python
-"""test_email.py - Test email sending"""
-from email_sender import EmailSender
+from email.smtp_client import SMTPClient
+import config
 
-sender = EmailSender()
-
-try:
-    sender.send_email(
-        to_addresses='your.email@example.com',
-        subject='Test Email',
-        body='If you receive this, email is working!',
-        attachments=None
-    )
-    print("✅ Email sent! Check your inbox.")
-except Exception as e:
-    print(f"❌ Email failed: {e}")
-finally:
-    sender.close()
-```
-
-### Test PDF Processing
-
-```python
-"""test_pdf.py - Test PDF splitting"""
-from pdf_handler import PDFHandler
-
-# Use a sample PDF
-handler = PDFHandler('sample.pdf')
-
-print("PDF Info:")
-info = handler.get_pdf_info()
-print(f"  Pages: {info['pages']}")
-print(f"  Size: {info['size_mb']:.2f} MB")
-
-print("\nSplitting PDF...")
-pdfs = handler.split_pdf()
-print(f"  Created {len(pdfs)} PDFs")
-
-print("\nGenerating thumbnails...")
-thumbs = handler.generate_thumbnails()
-print(f"  Created {len(thumbs)} thumbnails")
-
-print("\n✅ All PDF operations successful!")
-```
-
----
-
-## Example 9: Integration with External Systems
-
-### Slack Notification
-
-```python
-"""Send notification to Slack after completion"""
-import requests
-from powerbi_automation import run_automation
-
-# Your Slack webhook URL
-SLACK_WEBHOOK = "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
-
-def notify_slack(message):
-    requests.post(SLACK_WEBHOOK, json={"text": message})
-
-try:
-    pdf_path = run_automation()
-    notify_slack(f"✅ Power BI report generated: {pdf_path.name}")
-except Exception as e:
-    notify_slack(f"❌ Power BI automation failed: {str(e)}")
-```
-
-### Save to Cloud Storage
-
-```python
-"""Upload to AWS S3 after processing"""
-import boto3
-from powerbi_automation import run_automation
-from pdf_handler import split_pdf_file
-
-# Run automation
-pdf_path = run_automation()
-split_pdfs, _ = split_pdf_file(pdf_path)
-
-# Upload to S3
-s3 = boto3.client('s3')
-bucket = 'my-reports-bucket'
-
-for pdf in split_pdfs:
-    s3.upload_file(
-        str(pdf),
-        bucket,
-        f'reports/{pdf.name}'
-    )
-    print(f"Uploaded {pdf.name} to S3")
-```
-
----
-
-## Example 10: Configuration Variations
-
-### Use Different Email Provider (Outlook)
-
-```python
-"""Using Outlook/Office 365 instead of Gmail"""
-from email_sender import EmailSender
-
-sender = EmailSender(
-    email_address='user@company.com',
-    email_password='your_password',
-    smtp_server='smtp.office365.com',
-    smtp_port=587
+smtp = SMTPClient(
+    config.EMAIL_ADDRESS,
+    config.EMAIL_PASSWORD,
+    config.SMTP_SERVER,
+    config.SMTP_PORT
 )
 
-sender.send_email(
-    to_addresses='recipient@example.com',
-    subject='Report from Outlook',
-    body='Sent via Office 365',
-    attachments=['report.pdf']
+smtp.send(
+    to_addresses="test@company.com",
+    subject="Test Email",
+    body="Testing email configuration",
+    attachments=None
 )
 
-sender.close()
+smtp.close()
+print("✅ Email sent")
 ```
 
-### Run in Docker
+## Error Handling
 
-Create `Dockerfile`:
-```dockerfile
-FROM python:3.9-slim
+```python
+import powerbi
+from utils.logger import setup_logger
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    poppler-utils \
-    && rm -rf /var/lib/apt/lists/*
+logger = setup_logger('my_app', 'logs/my_app.log')
 
-WORKDIR /app
-
-# Copy files
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-RUN playwright install chromium --with-deps
-
-COPY . .
-
-# Run
-CMD ["streamlit", "run", "main.py"]
+try:
+    pdf_path = powerbi.export_report("https://app.powerbi.com/...")
+    logger.info(f"Success: {pdf_path}")
+except Exception as e:
+    logger.error(f"Failed: {e}", exc_info=True)
 ```
-
-Build and run:
-```bash
-docker build -t powerbi-automation .
-docker run -p 8501:8501 -v $(pwd)/.env:/app/.env powerbi-automation
-```
-
----
-
-## Need More Examples?
-
-Check the documentation:
-- `README.md` - Full documentation
-- `TROUBLESHOOTING.md` - Common issues
-- `ARCHITECTURE.md` - System design
-
----
-
-**Happy Automating! 🚀**
-
