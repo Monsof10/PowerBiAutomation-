@@ -1,0 +1,20 @@
+# systemd service example (place in /etc/systemd/system/pdf-automation.service)
+[Unit]
+Description=PDF Monthly Automation Run
+
+[Service]
+Type=oneshot
+WorkingDirectory=/path/to/pdf_monthly_automation_wip
+ExecStart=/usr/bin/python3 /path/to/pdf_monthly_automation_wip/automation.py
+EnvironmentFile=/path/to/pdf_monthly_automation_wip/.env
+
+# systemd timer (place in /etc/systemd/system/pdf-automation.timer)
+[Unit]
+Description=Run pdf automation monthly
+
+[Timer]
+OnCalendar=monthly
+Persistent=true
+
+[Install]
+WantedBy=timers.target
