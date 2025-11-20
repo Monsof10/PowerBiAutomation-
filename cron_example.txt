@@ -1,8 +1,0 @@
-# Cron example: run at 09:00 UTC on the 1st of every month
-0 9 1 * * /path/to/pdf_monthly_automation_wip/run_wrapper.sh >> /path/to/pdf_monthly_automation_wip/cron_run.log 2>&1
-
-# Example run_wrapper.sh (make executable)
-#!/bin/bash
-cd /path/to/pdf_monthly_automation_wip
-export $(grep -v '^#' .env | xargs)
-/usr/bin/python3 automation.py

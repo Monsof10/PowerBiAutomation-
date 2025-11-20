@@ -1,217 +1,88 @@
-# Power BI Automation System
+# PDF Monthly Automation - WIP
 
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Clean Code](https://img.shields.io/badge/Code-Clean%20%26%20Modular-success)](https://github.com/highMorHealth/powerbiAutomation)
+This is a work-in-progress package that provides a monthly automation:
+- Download a PDF from a URL (or via Playwright for JS/login flows)
+- Remove pages from the PDF
+- Email the modified PDF via Outlook (SMTP)
+- Logs stored in OUTPUT_DIR/automation.log
 
-Automate Power BI report generation, PDF processing, and email distribution using clean code principles and modular architecture.
+## Quick start
+1. Copy `.env.example` to `.env` and fill values.
+2. Install requirements:
+   ```
+   pip install -r requirements.txt
+   ```
+   If using Playwright, run:
+   ```
+   playwright install
+   ```
+3. Test run:
+   ```
+   python3 automation.py
+   ```
+4. If it works, schedule with cron/systemd or deploy to a server.
 
-## Features
+## Outlook SMTP notes
+- For Office 365 / Outlook, use `smtp.office365.com` port `587` with STARTTLS.
+- It's recommended to use an app password or a service account for automation.
 
-- **Power BI REST API**: Official Microsoft API for reliable report export
-- **Modular Design**: Each file ~60 lines, single responsibility
-- **Clean Code**: Follows NASA coding standards
-- **PDF Processing**: Split reports with thumbnail generation
-- **Email Distribution**: Send selected pages to multiple recipients
-- **Web Interface**: Streamlit UI with progress tracking
+## Playwright notes
+- If the PDF requires logging into Power BI and exporting via UI, set `USE_PLAYWRIGHT=true` and update the selector and login steps in `playwright_download.py`.
+- Playwright examples are placeholders—adjust selectors to match the actual page.
 
-## Quick Start
+## Security
+- Do NOT commit `.env` to source control.
+- Use environment-based secrets or your cloud provider's secret store when deploying.
 
-### Installation
+## Files
+- automation.py: Main script that orchestrates the download, PDF modification, and emailing.
+- pdf_utils.py: Utility functions for PDF manipulation (remove, extract, rotate pages).
+- playwright_download.py: Handles browser automation for login-required downloads (e.g., Power BI).
+- streamlit_dashboard.py: Web dashboard to trigger runs and view logs.
+- requirements.txt: Python dependencies.
+- Dockerfile: For containerizing the app.
+- .env.example: Template for configuration.
 
-```bash
-# Clone and setup
-git clone https://github.com/highMorHealth/powerbiAutomation.git
-cd powerbiAutomation
+## How It Works
 
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # Linux/Mac
+### 1. Configuration
+The script uses environment variables from a `.env` file for all sensitive and customizable settings. Copy `.env.example` to `.env` and fill in:
+- `DOWNLOAD_URL`: Direct URL to the PDF (if not using Playwright).
+- `USE_PLAYWRIGHT`: Set to `true` for browser automation (e.g., login to Power BI).
+- Playwright-specific: `PLAYWRIGHT_LOGIN_URL`, `PLAYWRIGHT_USERNAME`, `PLAYWRIGHT_PASSWORD`, `PLAYWRIGHT_DOWNLOAD_SELECTOR` (adjust selectors for your site).
+- `OUTPUT_DIR`: Folder for logs and downloaded PDFs (default: `/tmp/pdf_automation` on Unix, or customize for Windows).
+- `REMOVE_PAGES`: Comma-separated 1-based page numbers to remove (e.g., "1,3" removes first and third pages).
+- SMTP settings: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `EMAIL_TO`, `EMAIL_SUBJECT`, `EMAIL_BODY`.
 
-# Install dependencies
-pip install -r requirements.txt
-```
+**Note**: Page numbers are 1-based for user-friendliness (e.g., "1" is the first page).
 
-### Configuration
+### 2. Running the Script
+Execute `python automation.py` to run once. It performs:
+- **Download**: 
+  - If `USE_PLAYWRIGHT=false` (default): Downloads via `requests.get(DOWNLOAD_URL)`.
+  - If `true`: Launches Playwright browser, navigates to login URL, fills credentials, handles "Stay signed in?" prompt, loads dashboard, clicks Export > PDF, and waits for download (with timeouts and screenshots for debugging).
+- **PDF Modification**: Uses PyPDF2 to remove specified pages (0-based internally). Saves as `modified_report_{timestamp}.pdf` if changes made; otherwise uses raw file.
+- **Email**: Attaches the (modified) PDF and sends via SMTP (Outlook/Office 365). Uses STARTTLS for security.
+- **Logging**: All steps logged to `OUTPUT_DIR/automation.log` with timestamps.
 
-```bash
-# Copy template
-cp env.example .env
+### 3. Streamlit Dashboard
+Run `streamlit run streamlit_dashboard.py` for a web UI:
+- Button to trigger `automation.py`.
+- Displays last 10k characters of the log file.
 
-# Edit with your credentials
-nano .env
-```
+### 4. Scheduling
+- **Cron** (Linux/Mac): Use `cron_example.txt` as template (e.g., monthly on 1st).
+- **Systemd** (Linux): Use `systemd_example.txt` for timer-based runs.
+- **Windows**: Use Task Scheduler with a batch file calling `python automation.py`.
 
-Required settings:
-```env
-POWERBI_EMAIL=your.email@company.com
-POWERBI_PASSWORD=your_password
-POWERBI_REPORT_URL=https://app.powerbi.com/groups/workspace/reports/report
+### 5. Docker Deployment
+Build with `docker build -t pdf-automation .` and run `docker run -v /host/output:/app/output --env-file .env pdf-automation`. Uncomment Playwright install in Dockerfile if needed.
 
-EMAIL_ADDRESS=your.email@company.com
-EMAIL_PASSWORD=your_password
-SMTP_SERVER=smtp.office365.com
-SMTP_PORT=587
-```
+### 6. Troubleshooting
+- **Playwright Failures**: Check screenshots (e.g., `after_pdf_click.png`) for UI changes. Update selectors in `playwright_download.py`. Ensure `playwright install` ran.
+- **PDF Errors**: Verify page numbers (1-based). Test with `pdf_utils.py` functions directly.
+- **SMTP Issues**: Common error 535 means SMTP auth disabled in tenant—enable in Microsoft 365 Admin Center (https://aka.ms/smtp_auth_disabled). Use app passwords if 2FA enabled. Alternative: Switch to Gmail SMTP or Microsoft Graph API.
+- **Logs**: Always check `automation.log` for details.
+- **Windows Paths**: Use raw strings (r"path") for OUTPUT_DIR to handle backslashes.
 
-### Run
-
-```bash
-streamlit run app.py
-```
-
-## Architecture
-
-### Clean Code Structure
-
-```
-powerbiAutomation/
-├── app.py                     # Main UI (75 lines)
-├── config.py                  # Configuration (45 lines)
-├── powerbi.py                 # Power BI facade (60 lines)
-├── pdf_service.py             # PDF facade (45 lines)
-├── email_service_facade.py    # Email facade (45 lines)
-│
-├── auth/                      # Authentication (66 lines)
-│   ├── powerbi_auth.py
-│   └── __init__.py
-│
-├── api/                       # Power BI API (143 lines)
-│   ├── powerbi_client.py
-│   ├── report_exporter.py
-│   └── __init__.py
-│
-├── pdf/                       # PDF processing (143 lines)
-│   ├── splitter.py
-│   ├── thumbnail_generator.py
-│   └── __init__.py
-│
-├── email/                     # Email system (133 lines)
-│   ├── smtp_client.py
-│   ├── email_service.py
-│   └── __init__.py
-│
-└── utils/                     # Utilities (53 lines)
-    ├── logger.py
-    └── __init__.py
-```
-
-**Total: ~914 lines** (vs 1500+ in monolithic version)
-
-### Design Principles
-
-✅ **Single Responsibility** - Each module has one clear purpose
-✅ **Clean Code** - Functions under 30 lines, files under 80 lines
-✅ **DRY** - No code duplication
-✅ **Separation of Concerns** - Clear boundaries between layers
-✅ **Testability** - Easy to test individual components
-✅ **Maintainability** - Easy to understand and modify
-
-## Usage
-
-### Simple API
-
-```python
-# Export report
-import powerbi
-pdf_path = powerbi.export_report("https://app.powerbi.com/...")
-
-# Process PDF
-import pdf_service
-pdfs, thumbs = pdf_service.split_pdf(pdf_path)
-
-# Send emails
-import email_service_facade
-email_service_facade.send_pdfs(pdfs, ["user@company.com"], "Report", "Here's your report")
-```
-
-### Authentication
-
-**Password Auth** (Simple):
-- Set credentials in `.env`
-- Works for accounts without MFA
-
-**Device Code** (For MFA):
-- Automatic fallback if password fails
-- Follow on-screen instructions
-
-## Testing
-
-```bash
-# Verify setup
-python test_setup.py
-
-# Check all imports and configuration
-```
-
-## Email Providers
-
-**Outlook/Office 365:**
-```env
-SMTP_SERVER=smtp.office365.com
-SMTP_PORT=587
-```
-
-**Gmail:**
-```env
-SMTP_SERVER=smtp.gmail.com
-SMTP_PORT=587
-# Use App Password from https://myaccount.google.com/apppasswords
-```
-
-## Troubleshooting
-
-### Import Errors
-```bash
-pip install -r requirements.txt --upgrade
-```
-
-### Authentication Fails
-- Verify credentials in `.env`
-- For MFA accounts, device code flow will activate automatically
-
-### Email Fails
-- Use App Password for Gmail
-- Verify SMTP settings for your provider
-
-## Development
-
-### Code Standards
-
-- **NASA Coding Standards** - Reliability and safety
-- **Clean Code Principles** - Readability and maintainability
-- **PEP 8** - Python style guide
-- **Type Hints** - Better IDE support
-- **Docstrings** - All public functions documented
-
-### Adding Features
-
-1. Fork repository
-2. Create feature branch
-3. Follow existing module structure (~60 lines per file)
-4. Add tests
-5. Submit pull request
-
-## Project Stats
-
-- **Total Lines**: ~914 (Python code)
-- **Modules**: 13 focused modules
-- **Packages**: 5 (auth, api, pdf, email, utils)
-- **Avg File Size**: 60-70 lines
-- **Max File Size**: 79 lines
-
-
-
-## Support
-
-- **Issues**: GitHub Issues
-- **Setup Problems**: Run `python test_setup.py`
-- **Logs**: Check `logs/automation.log`
-
----
-
-**Built with clean code principles for maintainability and reliability**
-
-**Version:** 2.0.0 (Refactored)
-**Status:** Production Ready
-**Last Updated:** October 2025
+For customizations, edit the respective files. Contributions welcome!
