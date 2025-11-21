@@ -1,5 +1,5 @@
 # Environment variables
-.env
+# .env  # Uncomment if you want to track .env
 
 # Python
 __pycache__/
@@ -30,6 +30,7 @@ wheels/
 downloads/
 output/
 logs/
+email_body/
 
 # IDE
 .vscode/
