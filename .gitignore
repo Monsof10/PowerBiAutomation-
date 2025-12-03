@@ -31,6 +31,10 @@ downloads/
 output/
 logs/
 email_body/
+emailtemp/
+
+# Environment
+.env
 
 # IDE
 .vscode/

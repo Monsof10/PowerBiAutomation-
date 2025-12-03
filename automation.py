@@ -84,7 +84,7 @@ table, td, div, h1, p {font-family: Arial, sans-serif;}
 <table role="presentation" style="width:100%;border-collapse:collapse;border:0;border-spacing:0;background:#a3c7ff;">
 <tr>
 <td align="center" style="padding:0;">
-<table role="presentation" style="width:602px;border-collapse:collapse;border:1px solid #cccccc;border-spacing:0;text-align:left;">
+<table role="presentation" style="width:602px;border-collapse:collapse;border:0;border-spacing:0;text-align:left;">
 <tr>
 <td align="center" style="padding:40px 0 30px 0;background:#ffffff;">
 <b>This report is powered by</b><br>
@@ -94,8 +94,8 @@ table, td, div, h1, p {font-family: Arial, sans-serif;}
 </td>
 </tr>
 <tr>
-<td style="background:#FFFFFF;color:#2157BE;padding:36px 30px 42px 30px; text-align:center;font-size:200%;">
-    <img src="cid:logo2" width="150" height="150" alt="Report Logo" style="display:block; margin: 0 auto;" /><br>
+<td style="background:#FFFFFF;color:#2157BE;padding:36px 30px 42px 30px; text-align:center;font-size:200%; border:0;">
+    <img src="cid:logo2" width="170" height="170" alt="Report Logo" style="display:block; margin:0 auto; border:0; padding:0;" /><br>
     <b>Power BI Monthly Report</b>
 </td>
 </tr>
@@ -164,7 +164,7 @@ EMAIL_BODY_NO_ACTIVATIONS = """<!DOCTYPE html>
 </tr>
 <tr>
 <td style="background:#FFFFFF;color:#2157BE;padding:36px 30px 42px 30px; text-align:center;font-size:200%;">
-<img src="cid:logo2" width="150" height="150" />
+<img src="cid:logo2" width="170" height="170" style="display:block; margin:0 auto; border:0; padding:0;" />
 <br>
 <b>Power BI Monthly Report</b>
 </td>
@@ -398,9 +398,9 @@ def run_once():
 
             logging.info(f"Processing group {group_num} with facilities: {facilities}")
 
-            ts = now.strftime("%Y%m%dT%H%M%SZ")
+            ts = now.strftime("%Y%m%d")
             raw_path = os.path.join(OUTPUT_DIR, f"raw_{pdf_name}_{ts}.pdf")
-            modified_path = os.path.join(OUTPUT_DIR, f"modified_{pdf_name}_{ts}.pdf")
+            modified_path = os.path.join(OUTPUT_DIR, f"{pdf_name}_{ts}.pdf")
 
             try:
                 # 1) Download with specific facility group
@@ -423,7 +423,8 @@ def run_once():
                         output_path=raw_path,
                         ending_facilities=facilities,
                         reset_all_selector="button[data-testid='reset-to-default-btn']",  # Reset button selector for all groups
-                        browser=browser
+                        browser=browser,
+                        group_num=group_num
                     )
                 else:
                     if not DOWNLOAD_URL:

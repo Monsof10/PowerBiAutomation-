@@ -47,7 +47,7 @@ EMAIL_BODY = os.getenv('EMAIL_BODY', """<!DOCTYPE html>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#a3c7ff;">
       <tr>
         <td align="center">
-          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border:1px solid #cccccc;">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border:0;">
             
             <!-- Header Section -->
             <tr>
@@ -127,22 +127,22 @@ ENDING_FACILITIES_GROUPS = {
     8: "Legacy Emanuel Medical Center,Legacy Good Samaritan Hospital,Legacy Meridian Park Medical Center,Legacy Mount Hood Medical Center,Legacy Randall Children's Hospital,Legacy Silverton Medical Center,Legacy Salmon Creek Medical Center",
     9: "Providence Hood River Memorial Hospital,Providence Medford Medical Center,Providence Milwaukie Hospital,Providence Newberg Medical Center,Providence Portland Medical Center,Providence Seaside Hospital,Providence St Vincent Medical Center,Providence Willamette Falls,Providence Centralia Hospital,Providence St. Mary",
     10: "PeaceHealth Southwest Medical Center,PeaceHealth St. John Medical Center",
-    11: "Adventist Health Portland,Doernbecher Children's Hospital,OHSU Hospital,Hillsboro Medical Center,PeaceHealth Southwest Medical Center,PeaceHealth St. John Medical Center",
-    12: "Adventist Health Portland,Doernbecher Children's Hospital,OHSU Hospital,Hillsboro Medical Center,PeaceHealth Southwest Medical Center,PeaceHealth St. John Medical Center"
+    11: "Select All",
+    12: "Select All"
 }
 PDF_NAMES = {
-   1: 'OHSU.pdf',
--    2: 'Salem_Health.pdf',
--    3: 'PeaceHealth.pdf',
--    4: 'Asante.pdf',
--    5: 'St_Charles.pdf',
--    6: 'Grande_Ronde.pdf',
--    7: 'Kaiser.pdf',
--    8: 'Legacy.pdf',
--    9: 'Providence.pdf',
--    10: 'SW_WA_PeaceHealth.pdf',
--    11: 'Oregon_Health_Authority.pdf',
--    12: 'Apprise.pdf'}
+   1: 'OMCCDashboard',
+   2: 'OMCCDashboard',
+   3: 'OMCCDashboard',
+   4: 'OMCCDashboard',
+   5: 'OMCCDashboard',
+   6: 'OMCCDashboard',
+   7: 'OMCCDashboard',
+   8: 'OMCCDashboard',
+   9: 'OMCCDashboard',
+   10: 'OMCCDashboard',
+   11: 'OMCCDashboard',
+   12: 'OMCCDashboard'}
 
 # Logging
 LOG_FILE = LOGS_FOLDER / 'automation.log'

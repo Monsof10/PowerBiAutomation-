@@ -8,15 +8,11 @@ def download_with_playwright(login_url: str, username: str, password: str,
                              download_button_selector: str, output_path: str,
                              headless=True, start_date_selector: str = None, end_date_selector: str = None,
                              start_calendar_button: str = None, end_calendar_button: str = None,
-                             start_date=None, end_date=None, ending_facilities: str = "", reset_all_selector: str = None, browser=None):
+                             start_date=None, end_date=None, ending_facilities: str = "", reset_all_selector: str = None, browser=None, group_num: int = None):
     """
     Downloads PDF and returns (output_path, has_activations, activation_count)
     has_activations: True if numeric values found, False otherwise
     activation_count: The total count found, or 0 if none
-    """
-    """
-    Opens the login page, fills credentials (adapt selectors), clicks download, saves file.
-    NOTE: You must edit the login steps to match the dashboard (selectors).
     """
     if browser is None:
         with sync_playwright() as p:
@@ -131,37 +127,10 @@ def download_with_playwright(login_url: str, username: str, password: str,
         except Exception as e:
             logging.warning(f"Login steps failed: {e}")
         # ===========================================
-    # Wait for dashboard to load (adjust selector if needed, e.g., a common element like the report title)
+    # Wait for dashboard to load
     logging.info("Waiting for dashboard to load...")
-    page.wait_for_load_state("load", timeout=30000)  # Ensure page is fully loaded
-    time.sleep(5)  # Reduced wait time for dynamic content to fully load
-
-    # Debug: List all buttons and clickable elements on the page after dashboard loads
-    # buttons = page.query_selector_all('button')
-    # logging.info(f"Found {len(buttons)} buttons on the page after dashboard load:")
-    # for i, btn in enumerate(buttons):
-    #     text = btn.inner_text() or btn.get_attribute('aria-label') or btn.get_attribute('title') or "No text"
-    #     btn_id = btn.get_attribute('id') or "No id"
-    #     btn_class = btn.get_attribute('class') or "No class"
-    #     btn_data_testid = btn.get_attribute('data-testid') or "No data-testid"
-    #     logging.info(f"Button {i}: text='{text}', id='{btn_id}', class='{btn_class}', data-testid='{btn_data_testid}'")
-
-    # Also check for spans with localize attribute (like Export button)
-    # spans = page.query_selector_all('span[localize]')
-    # logging.info(f"Found {len(spans)} spans with localize attribute:")
-    # for i, span in enumerate(spans):
-    #     localize = span.get_attribute('localize') or "No localize"
-    #     text = span.inner_text() or "No text"
-    #     logging.info(f"Span {i}: localize='{localize}', text='{text}'")
-
-    # Check for divs that might be clickable (like menu items)
-    # clickable_divs = page.query_selector_all('div[role="button"], div[tabindex="0"]')
-    # logging.info(f"Found {len(clickable_divs)} clickable divs:")
-    # for i, div in enumerate(clickable_divs):
-    #     text = div.inner_text() or "No text"
-    #     role = div.get_attribute('role') or "No role"
-    #     tabindex = div.get_attribute('tabindex') or "No tabindex"
-    #     logging.info(f"Clickable div {i}: text='{text}', role='{role}', tabindex='{tabindex}'")
+    page.wait_for_load_state("load", timeout=30000)
+    time.sleep(5)
 
     # Reset all filters before setting dates if selector provided
     if reset_all_selector:
@@ -178,7 +147,7 @@ def download_with_playwright(login_url: str, username: str, password: str,
         except Exception as e:
             logging.warning(f"Failed to reset all filters before dates: {e}")
 
-    # Compute date for 1 months ago, first day of that month
+ # Compute date for 1 months ago, first day of that month
         from datetime import datetime, timedelta
         today = datetime.now()
         target_month = today.month - 1
@@ -268,38 +237,75 @@ def download_with_playwright(login_url: str, username: str, password: str,
                     logging.warning(f"Failed to set end date with alternative selector: {e2}")
 
         # Click EFF button
+        # Track whether we selected a '(Blank)' option after EFF (default False)
+        blank_selected = False
         try:
-            logging.info("Looking for 'EFF' button...")
-            page.locator('.mat-mdc-list-item').get_by_text('EFF').first.click(timeout=10000)
-            logging.info("Clicked 'EFF' button")
-            time.sleep(3)  # Wait for action to complete
+                logging.info("Looking for 'EFF' button...")
+                page.locator('.mat-mdc-list-item').get_by_text('EFF').first.click(timeout=10000)
+                logging.info("Clicked 'EFF' button")
+                time.sleep(3)  # Wait for action to complete
+
+
+                # Special case for group 6: click '(Blank)' button after EFF click
+                if group_num == 6:
+                    try:
+                        logging.info("Group 6: Clicking '(Blank)' button after EFF click")
+                        # Try clicking button, span, or div with text "(Blank)"
+                        clicked = False
+                        selectors = [
+                            'button:has-text("(Blank)")',
+                            'span:has-text("(Blank)")',
+                            'div:has-text("(Blank)")'
+                        ]
+                        for selector in selectors:
+                            try:
+                                locator = page.locator(selector).first
+                                if locator.is_visible():
+                                    locator.click(timeout=10000)
+                                    logging.info(f"Clicked '(Blank)' button with selector: {selector}")
+                                    clicked = True
+                                    blank_selected = True
+                                    break
+                            except Exception as e:
+                                logging.warning(f"Failed to click '(Blank)' button with selector {selector}: {e}")
+                        if not clicked:
+                            logging.warning("Could not find or click any '(Blank)' button elements - checking for presence of '(Blank)' text")
+                            # Even if we couldn't click, check presence of any element containing the text "(Blank)" and treat as blank selected
+                            try:
+                                # Use a broad text search; if any element contains the text, treat as blank selected
+                                if page.locator('text="(Blank)"').count() > 0:
+                                    logging.info("Found '(Blank)' text on page - treating as if '(Blank)' was selected")
+                                    blank_selected = True
+                                    clicked = True
+                                else:
+                                    has_activations = False
+                                    activation_count = 0
+                            except Exception as te:
+                                logging.debug(f"Error checking for '(Blank)' text: {te}")
+                                has_activations = False
+                                activation_count = 0
+                        else:
+                            # If clicked '(Blank)', also treat as no facilities selected
+                            has_activations = False
+                            activation_count = 0
+                        time.sleep(3)  # Wait for action to complete
+                    except Exception as be:
+                        logging.warning(f"Failed to click '(Blank)' button: {be} - treating as no facilities selected")
+                        has_activations = False
+                        activation_count = 0
+
         except Exception as e:
             logging.warning(f"Failed to click 'EFF' button: {e}")
 
-        # Debug: List all possible facility elements after clicking EFF
-        # facility_elements = page.query_selector_all('div[title], span[title], tr, .facility-row, input[type="checkbox"]')
-        # logging.info(f"Found {len(facility_elements)} possible facility elements after EFF click:")
-        # for i, elem in enumerate(facility_elements[:20]):  # Limit to first 20 to avoid spam
-        #     try:
-        #         title = elem.get_attribute('title') or "No title"
-        #         text = elem.inner_text() or "No text"
-        #         tag = elem.tag_name
-        #         logging.info(f"Element {i}: tag='{tag}', title='{title}', text='{text}'")
-        #     except Exception as e:
-        #         logging.debug(f"Error getting element {i} attributes: {e}")
-        #         continue
-
-        # Select ending facilities from ENDING_FACILITIES in Facility Filter
+        # Select ending facilities from ENDING_FACILITIES in Ending Facility Filter
         if ending_facilities:
             facilities_list = [f.strip() for f in ending_facilities.split(',') if f.strip()]
             logging.info(f"Selecting {len(facilities_list)} ending facilities in Ending Facility Filter: {facilities_list}")
             for facility in facilities_list:
                 try:
                     logging.info(f"Looking for facility in Ending Facility Filter: {facility}")
-                    # Try multiple selectors for table-based facility selection
-                    # Based on debug, facilities have title attributes with full names and are clickable divs
                     facility_selectors = [
-                        f'[title="{facility}"]',  # Direct title match
+                        f'[title="{facility}"]',
                         f'div[title="{facility}"]',
                         f'span[title="{facility}"]',
                         f'tr:has-text("{facility}") input[type="checkbox"]',
@@ -315,7 +321,6 @@ def download_with_playwright(login_url: str, username: str, password: str,
                         try:
                             locator = page.locator(selector).first
                             if locator.is_visible():
-                                # Debug: Log the locator details
                                 bounding_box = locator.bounding_box()
                                 logging.info(f"Found visible locator for {facility}: {selector}, position: {bounding_box}")
                                 locator.click(timeout=5000)
@@ -329,93 +334,76 @@ def download_with_playwright(login_url: str, username: str, password: str,
                             logging.debug(f"Selector {selector} failed for {facility}: {e}")
                             continue
                     
-                    # Skip partial matching to avoid false matches - only use exact matches
-                    # If full name didn't work, facility might not exist or selector needs updating
-                    pass
-                    
                     if not clicked:
                         logging.warning(f"Could not select facility: {facility} - check debug logs and screenshot")
                 except Exception as e:
                     logging.warning(f"Error selecting facility {facility}: {e}")
-            time.sleep(2)  # Wait after selecting facilities
+            time.sleep(2)
 
 
-        # Click the Facility Filter
-        try:
-            logging.info("Looking for 'Facility Filter' list item...")
-            page.locator('.mat-mdc-list-item').get_by_text('Facility Filter').first.click(timeout=10000)
-            logging.info("Clicked 'Facility Filter' list item")
-            time.sleep(3)  # Wait for new page/section to load
-        except Exception as e:
-            logging.warning(f"Failed to click 'Facility Filter' list item: {e}")
-            pass
+        # If we selected '(Blank)' in the EFF step for group 6, skip the Facility Filter entirely
+        if not blank_selected:
+            try:
+                logging.info("Looking for 'Facility Filter' list item...")
+                page.locator('.mat-mdc-list-item').get_by_text('Facility Filter').first.click(timeout=10000)
+                logging.info("Clicked 'Facility Filter' list item")
+                time.sleep(3)
+            except Exception as e:
+                logging.warning(f"Failed to click 'Facility Filter' list item: {e}")
 
-         # Select ending facilities from ENDING_FACILITIES in Facility Filter
-        if ending_facilities:
-            facilities_list = [f.strip() for f in ending_facilities.split(',') if f.strip()]
-            logging.info(f"Selecting {len(facilities_list)} ending facilities in Facility Filter: {facilities_list}")
-            for facility in facilities_list:
-                try:
-                    logging.info(f"Looking for facility in Facility Filter: {facility}")
-                    # Try multiple selectors for table-based facility selection
-                    # Based on debug, facilities have title attributes with full names and are clickable divs
-                    facility_selectors = [
-                        f'[title="{facility}"]',  # Direct title match
-                        f'div[title="{facility}"]',
-                        f'span[title="{facility}"]',
-                        f'tr:has-text("{facility}") input[type="checkbox"]',
-                        f'tr:has-text("{facility}") .mat-checkbox',
-                        f'.facility-row:has-text("{facility}") input[type="checkbox"]',
-                        f'div:has-text("{facility}") input[type="checkbox"]',
-                        f'label:has-text("{facility}")',
-                        f'text={facility}',
-                        f'span:has-text("{facility}")'
-                    ]
-                    clicked = False
-                    for selector in facility_selectors:
-                        try:
-                            # Get all matching locators, not just the first
-                            locators = page.locator(selector).all()
-                            for loc in locators:
-                                if loc.is_visible():
-                                    # Scroll into view and wait
-                                    loc.scroll_into_view_if_needed()
-                                    time.sleep(0.5)
-                                    # Debug: Log the locator details
-                                    bounding_box = loc.bounding_box()
-                                    logging.info(f"Found visible locator for {facility}: {selector}, position: {bounding_box}")
-                                    loc.click(timeout=5000)
-                                    logging.info(f"Selected facility: {facility} using selector: {selector}")
-                                    clicked = True
-                                    time.sleep(1)  # Wait between clicks
+            if ending_facilities:
+                facilities_list = [f.strip() for f in ending_facilities.split(',') if f.strip()]
+                logging.info(f"Selecting {len(facilities_list)} ending facilities in Facility Filter: {facilities_list}")
+                for facility in facilities_list:
+                    try:
+                        logging.info(f"Looking for facility in Facility Filter: {facility}")
+                        facility_selectors = [
+                            f'[title="{facility}"]',
+                            f'div[title="{facility}"]',
+                            f'span[title="{facility}"]',
+                            f'tr:has-text("{facility}") input[type="checkbox"]',
+                            f'tr:has-text("{facility}") .mat-checkbox',
+                            f'.facility-row:has-text("{facility}") input[type="checkbox"]',
+                            f'div:has-text("{facility}") input[type="checkbox"]',
+                            f'label:has-text("{facility}")',
+                            f'text={facility}',
+                            f'span:has-text("{facility}")'
+                        ]
+                        clicked = False
+                        for selector in facility_selectors:
+                            try:
+                                locators = page.locator(selector).all()
+                                for loc in locators:
+                                    if loc.is_visible():
+                                        loc.scroll_into_view_if_needed()
+                                        time.sleep(0.5)
+                                        bounding_box = loc.bounding_box()
+                                        logging.info(f"Found visible locator for {facility}: {selector}, position: {bounding_box}")
+                                        loc.click(timeout=5000)
+                                        logging.info(f"Selected facility: {facility} using selector: {selector}")
+                                        clicked = True
+                                        time.sleep(1)
+                                        break
+                                if clicked:
                                     break
-                            if clicked:
-                                break
-                        except Exception as e:
-                            logging.debug(f"Selector {selector} failed for {facility}: {e}")
-                            continue
+                            except Exception as e:
+                                logging.debug(f"Selector {selector} failed for {facility}: {e}")
+                                continue
 
-                    # Skip partial matching to avoid false matches - only use exact matches
-                    # If full name didn't work, facility might not exist or selector needs updating
-                    pass
+                        if not clicked:
+                            logging.warning(f"Could not select facility: {facility} - check debug logs and screenshot")
+                        else:
+                            logging.info(f"Successfully selected facility: {facility}")
+                    except Exception as e:
+                        logging.warning(f"Error selecting facility {facility}: {e}")
+            time.sleep(3)
 
-                    if not clicked:
-                        logging.warning(f"Could not select facility: {facility} - check debug logs and screenshot")
-                    else:
-                        logging.info(f"Successfully selected facility: {facility}")
-                except Exception as e:
-                    logging.warning(f"Error selecting facility {facility}: {e}")
-            time.sleep(3)  # Wait after selecting all facilities
-         #Debug: List all buttons on the page before clicking activation
-        #buttons = page.query_selector_all('button')
-         #logging.info(f"Found {len(buttons)} buttons on the page:")
-         #for i, btn in enumerate(buttons):
-          # text = btn.inner_text() or btn.get_attribute('aria-label') or btn.get_attribute('title') or "No text"
-         #  btn_id = btn.get_attribute('id') or "No id"
-           #btn_class = btn.get_attribute('class') or "No class"
-           #logging.info(f"Button {i}: text='{text}', id='{ #btn_id}', class='{btn_class}'")
-
-
+        # If '(Blank)' was selected (blank_selected = True), skip Activations report and export
+        # because blank means 0 activations, so send no-activations email
+        if blank_selected:
+            logging.info("'(Blank)' was selected in EFF — returning early with has_activations=False to send no-activations email")
+            context.close()
+            return output_path, False, 0
 
         # Click Activations report101 button before export
         try:
@@ -523,6 +511,6 @@ def download_with_playwright(login_url: str, username: str, password: str,
             logging.info("PDF downloaded successfully to %s", output_path)
         except Exception as e:
             logging.error(f"Export button not found: {e}")
-            raise Exception("Export button not found - check if dashboard loaded correctly. Screenshot: after_dashboard_load.png")
-        context.close()
+            raise Exception("Export button not found - check if dashboard loaded correctly. ")
+    context.close()
     return output_path, has_activations, activation_count
