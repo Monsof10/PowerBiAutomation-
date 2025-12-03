@@ -5,6 +5,11 @@ import logging
 import time
 import smtplib
 from email.message import EmailMessage
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
+from email.mime.application import MIMEApplication
+import mimetypes
 import requests
 from datetime import datetime, timezone
 from dateutil.relativedelta import relativedelta
@@ -79,24 +84,19 @@ table, td, div, h1, p {font-family: Arial, sans-serif;}
 <table role="presentation" style="width:100%;border-collapse:collapse;border:0;border-spacing:0;background:#a3c7ff;">
 <tr>
 <td align="center" style="padding:0;">
-<table role="presentation" style="width:602px;border-collapse:collapse;border:1px solid #cccccc;border-spacing:0;text-align:left;">
+<table role="presentation" style="width:602px;border-collapse:collapse;border:0;border-spacing:0;text-align:left;">
 <tr>
 <td align="center" style="padding:40px 0 30px 0;background:#ffffff;">
 <b>This report is powered by</b><br>
 <a href="https://www.highmor.com">
-<img src="data:image/png;base64,@{body('Get_file_content_using_path')?['$content']}" width="120" height="60" alt="highMor Logo" style="display:block;" />
-</a><br>
-<b style="color: #0B65BA;">Transfer Center Software</b>
+    <img src="cid:logo1" width="120" height="60" />
+    </a><br>
 </td>
 </tr>
 <tr>
-<td align="center" style="padding:10px 10px 10px 30px;background:#2157BE;">
-</td>
-</tr>
-<tr>
-<td style="background:#FFFFFF;color:#2157BE;padding:36px 30px 42px 30px; text-align:center;font-size:200%;">
-<img src="data:image/png;base64,@{body(' Get_file_content_using_path_2 ')?['$content']}" width="150" height="150" alt="Report Logo" style="display:block; margin: 0 auto;" /><br>
-<b>Power BI Monthly Report</b>
+<td style="background:#FFFFFF;color:#2157BE;padding:36px 30px 42px 30px; text-align:center;font-size:200%; border:0;">
+    <img src="cid:logo2" width="170" height="170" alt="Report Logo" style="display:block; margin:0 auto; border:0; padding:0;" /><br>
+    <b>Power BI Monthly Report</b>
 </td>
 </tr>
 <tr>
@@ -151,8 +151,8 @@ EMAIL_BODY_NO_ACTIVATIONS = """<!DOCTYPE html>
 <td align="center" style="padding:40px 0 30px 0;background:#ffffff;">
 <b>This report is powered by</b><br>
 <a href="https://www.highmor.com"> <!-- Your hyperlink goes here -->
-<img src="data:image/png;base64,@{body('Get_file_content_using_path')?['$content']}" width="120" height="60" />
-</a>
+    <img src="cid:logo1" width="120" height="60" />
+    </a>
 <br> <b style="color: #0B65BA;">Transfer Center Software</b>
 </td>
 </tr>
@@ -164,7 +164,7 @@ EMAIL_BODY_NO_ACTIVATIONS = """<!DOCTYPE html>
 </tr>
 <tr>
 <td style="background:#FFFFFF;color:#2157BE;padding:36px 30px 42px 30px; text-align:center;font-size:200%;">
-<img src="data:image/png;base64,@{body(' Get_file_content_using_path_2 ')?['$content']}" width="150" height="150" />
+<img src="cid:logo2" width="170" height="170" style="display:block; margin:0 auto; border:0; padding:0;" />
 <br>
 <b>Power BI Monthly Report</b>
 </td>
@@ -213,15 +213,67 @@ def download_via_requests(url, out_path):
 
 def send_email_with_attachment(smtp_host, smtp_port, smtp_user, smtp_pass,
                                from_addr, to_addr, subject, body, attachment_path):
+    """Send an HTML email with a PDF attachment and inline images (logo1, logo2).
+
+    The message structure is:
+    multipart/mixed
+      multipart/related
+        multipart/alternative
+          text/plain
+          text/html
+        image (cid:logo1)
+        image (cid:logo2)
+      application/pdf (attachment)
+    """
     logging.info("Preparing email to %s", to_addr)
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = from_addr
-    msg["To"] = to_addr
-    msg.set_content(body, subtype='html')
-    with open(attachment_path, "rb") as f:
-        data = f.read()
-    msg.add_attachment(data, maintype="application", subtype="pdf", filename=os.path.basename(attachment_path))
+    # Root container
+    msg_root = MIMEMultipart('mixed')
+    msg_root['Subject'] = subject
+    msg_root['From'] = from_addr
+    msg_root['To'] = to_addr
+
+    # Related part for HTML + inline images
+    related = MIMEMultipart('related')
+    alt = MIMEMultipart('alternative')
+    related.attach(alt)
+
+    # Plain text fallback
+    alt.attach(MIMEText('This message contains HTML content and a PDF attachment.', 'plain'))
+    # HTML body
+    alt.attach(MIMEText(body, 'html'))
+
+    # Attach inline images from emailtemp folder
+    base_dir = os.path.dirname(__file__)
+    image_paths = [os.path.join(base_dir, 'emailtemp', 'highmor.png'),
+                   os.path.join(base_dir, 'emailtemp', 'omcc.png')]
+    cids = ['logo1', 'logo2']
+    for cid, path in zip(cids, image_paths):
+        if os.path.exists(path):
+            with open(path, 'rb') as imgf:
+                img_data = imgf.read()
+            try:
+                subtype = mimetypes.guess_type(path)[0].split('/')[1]
+            except Exception:
+                subtype = None
+            if subtype:
+                img = MIMEImage(img_data, _subtype=subtype)
+            else:
+                img = MIMEImage(img_data)
+            img.add_header('Content-ID', f'<{cid}>')
+            img.add_header('Content-Disposition', 'inline', filename=os.path.basename(path))
+            related.attach(img)
+        else:
+            logging.warning('Inline image not found: %s', path)
+
+    # Attach the related part to root
+    msg_root.attach(related)
+
+    # Attach the PDF
+    with open(attachment_path, 'rb') as f:
+        pdf = MIMEApplication(f.read(), _subtype='pdf')
+        pdf.add_header('Content-Disposition', 'attachment', filename=os.path.basename(attachment_path))
+        msg_root.attach(pdf)
+
     logging.info("Connecting to SMTP %s:%s", smtp_host, smtp_port)
     try:
         server = smtplib.SMTP(smtp_host, smtp_port, timeout=60)
@@ -229,7 +281,7 @@ def send_email_with_attachment(smtp_host, smtp_port, smtp_user, smtp_pass,
         server.starttls()
         server.ehlo()
         server.login(smtp_user, smtp_pass)
-        server.send_message(msg)
+        server.send_message(msg_root)
         server.quit()
         logging.info("Email sent to %s", to_addr)
     except smtplib.SMTPAuthenticationError as e:
@@ -246,12 +298,41 @@ def send_email_with_attachment(smtp_host, smtp_port, smtp_user, smtp_pass,
 
 def send_email_without_attachment(smtp_host, smtp_port, smtp_user, smtp_pass,
                                   from_addr, to_addr, subject, body):
+    """Send HTML email (no attachment) with inline images from emailtemp folder."""
     logging.info("Preparing email to %s (no attachment)", to_addr)
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = from_addr
-    msg["To"] = to_addr
-    msg.set_content(body, subtype='html')  # HTML content for the no-activations email
+    msg_root = MIMEMultipart('related')
+    msg_root['Subject'] = subject
+    msg_root['From'] = from_addr
+    msg_root['To'] = to_addr
+
+    alt = MIMEMultipart('alternative')
+    alt.attach(MIMEText('This message contains HTML content.', 'plain'))
+    alt.attach(MIMEText(body, 'html'))
+    msg_root.attach(alt)
+
+    # Attach inline images
+    base_dir = os.path.dirname(__file__)
+    image_paths = [os.path.join(base_dir, 'emailtemp', 'highmor.png'),
+                   os.path.join(base_dir, 'emailtemp', 'omcc.png')]
+    cids = ['logo1', 'logo2']
+    for cid, path in zip(cids, image_paths):
+        if os.path.exists(path):
+            with open(path, 'rb') as imgf:
+                img_data = imgf.read()
+            try:
+                subtype = mimetypes.guess_type(path)[0].split('/')[1]
+            except Exception:
+                subtype = None
+            if subtype:
+                img = MIMEImage(img_data, _subtype=subtype)
+            else:
+                img = MIMEImage(img_data)
+            img.add_header('Content-ID', f'<{cid}>')
+            img.add_header('Content-Disposition', 'inline', filename=os.path.basename(path))
+            msg_root.attach(img)
+        else:
+            logging.warning('Inline image not found: %s', path)
+
     logging.info("Connecting to SMTP %s:%s", smtp_host, smtp_port)
     try:
         server = smtplib.SMTP(smtp_host, smtp_port, timeout=60)
@@ -259,7 +340,7 @@ def send_email_without_attachment(smtp_host, smtp_port, smtp_user, smtp_pass,
         server.starttls()
         server.ehlo()
         server.login(smtp_user, smtp_pass)
-        server.send_message(msg)
+        server.send_message(msg_root)
         server.quit()
         logging.info("Email sent to %s (no attachment)", to_addr)
     except smtplib.SMTPAuthenticationError as e:
@@ -317,9 +398,9 @@ def run_once():
 
             logging.info(f"Processing group {group_num} with facilities: {facilities}")
 
-            ts = now.strftime("%Y%m%dT%H%M%SZ")
+            ts = now.strftime("%Y%m%d")
             raw_path = os.path.join(OUTPUT_DIR, f"raw_{pdf_name}_{ts}.pdf")
-            modified_path = os.path.join(OUTPUT_DIR, f"modified_{pdf_name}_{ts}.pdf")
+            modified_path = os.path.join(OUTPUT_DIR, f"{pdf_name}_{ts}.pdf")
 
             try:
                 # 1) Download with specific facility group
@@ -342,7 +423,8 @@ def run_once():
                         output_path=raw_path,
                         ending_facilities=facilities,
                         reset_all_selector="button[data-testid='reset-to-default-btn']",  # Reset button selector for all groups
-                        browser=browser
+                        browser=browser,
+                        group_num=group_num
                     )
                 else:
                     if not DOWNLOAD_URL:
