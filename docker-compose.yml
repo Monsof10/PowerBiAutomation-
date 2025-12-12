@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  pdf-automation:
+    build: .
+    container_name: pdf_monthly_automation
+    restart: unless-stopped
+    volumes:
+      - ./:/app
+    environment:
+      - TZ=UTC
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

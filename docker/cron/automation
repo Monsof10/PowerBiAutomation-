@@ -1,0 +1,3 @@
+# run at 00:00 on the 1st of every month
+# (user: root)
+0 0 1 * * root cd /app && /usr/local/bin/python automation.py >> /var/log/automation.log 2>&1
