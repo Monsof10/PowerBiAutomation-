@@ -236,14 +236,44 @@ def download_with_playwright(login_url: str, username: str, password: str,
                 except Exception as e2:
                     logging.warning(f"Failed to set end date with alternative selector: {e2}")
 
-        # Click EFF button
+        # Click EFF button (use element index 58 when available)
         # Track whether we selected a '(Blank)' option after EFF (default False)
         blank_selected = False
         try:
-                logging.info("Looking for 'EFF' button...")
-                page.locator('.mat-mdc-list-item').get_by_text('EFF').first.click(timeout=10000)
-                logging.info("Clicked 'EFF' button")
-                time.sleep(3)  # Wait for action to complete
+                logging.info("Clicking EFF (prefer index 58)...")
+                CLICKABLE_SELECTOR_EFF = (
+                    "button, a[href], [role=\"button\"], [onclick], [tabindex],"
+                    " input[type=\"button\"], input[type=\"submit\"], *[ng-click], *[data-click],"
+                    " *[class*=\"button\"], *[class*=\"btn\"], *[class*=\"click\"], [aria-hidden=\"false\"][tabindex],"
+                    " tri-button, mat-button, [role=\"link\"], [role=\"menuitem\"], [aria-pressed]"
+                )
+                try:
+                    els_eff = page.query_selector_all(CLICKABLE_SELECTOR_EFF)
+                except Exception:
+                    els_eff = []
+
+                if len(els_eff) > 58:
+                    try:
+                        els_eff[58].scroll_into_view_if_needed()
+                        els_eff[58].click(force=True)
+                        logging.info("Clicked EFF via index 58")
+                    except Exception as e_idx58:
+                        logging.warning(f"Index 58 click failed: {e_idx58} — falling back to text click")
+                        try:
+                            page.locator('.mat-mdc-list-item').get_by_text('EFF').first.click(timeout=10000)
+                            logging.info("Clicked 'EFF' button (fallback by text)")
+                        except Exception as e_text:
+                            logging.warning(f"Fallback EFF click failed: {e_text}")
+                else:
+                    try:
+                        page.locator('.mat-mdc-list-item').get_by_text('EFF').first.click(timeout=10000)
+                        logging.info("Clicked 'EFF' button (text)")
+                    except Exception as e_text2:
+                        logging.warning(f"Failed to click 'EFF' button: {e_text2}")
+
+                time.sleep(2)
+
+                # Overview click will be performed after opening Facility Filter and selecting facilities
 
 
                 # Special case for group 6: click '(Blank)' button after EFF click
@@ -339,17 +369,54 @@ def download_with_playwright(login_url: str, username: str, password: str,
                 except Exception as e:
                     logging.warning(f"Error selecting facility {facility}: {e}")
             time.sleep(2)
-
+# After selecting facilities in Facility Filter, click Overview (best-effort)
+            try:
+                ov = page.get_by_text('Overview')
+                if ov.count() > 0:
+                    ov.first.click(timeout=5000)
+                    logging.info("Clicked 'Overview' after selecting facilities")
+                    time.sleep(1)
+            except Exception:
+                logging.debug("Overview not found or click failed after selecting facilities")
 
         # If we selected '(Blank)' in the EFF step for group 6, skip the Facility Filter entirely
         if not blank_selected:
             try:
-                logging.info("Looking for 'Facility Filter' list item...")
-                page.locator('.mat-mdc-list-item').get_by_text('Facility Filter').first.click(timeout=10000)
-                logging.info("Clicked 'Facility Filter' list item")
-                time.sleep(3)
+                logging.info("Clicking Facility Filter (prefer index 56)...")
+                CLICKABLE_SELECTOR_FAC = (
+                    "button, a[href], [role=\"button\"], [onclick], [tabindex],"
+                    " input[type=\"button\"], input[type=\"submit\"], *[ng-click], *[data-click],"
+                    " *[class*=\"button\"], *[class*=\"btn\"], *[class*=\"click\"], [aria-hidden=\"false\"][tabindex],"
+                    " tri-button, mat-button, [role=\"link\"], [role=\"menuitem\"], [aria-pressed]"
+                )
+                try:
+                    els_fac = page.query_selector_all(CLICKABLE_SELECTOR_FAC)
+                except Exception:
+                    els_fac = []
+
+                if len(els_fac) > 56:
+                    try:
+                        els_fac[56].scroll_into_view_if_needed()
+                        els_fac[56].click(force=True)
+                        logging.info("Clicked Facility Filter via index 56")
+                        time.sleep(2)
+                    except Exception as e_idx56:
+                        logging.warning(f"Index 56 click failed: {e_idx56} — falling back to text click")
+                        try:
+                            page.locator('.mat-mdc-list-item').get_by_text('Facility Filter').first.click(timeout=10000)
+                            logging.info("Clicked 'Facility Filter' list item (fallback)")
+                            time.sleep(3)
+                        except Exception as e_text:
+                            logging.warning(f"Fallback Facility Filter click failed: {e_text}")
+                else:
+                    try:
+                        page.locator('.mat-mdc-list-item').get_by_text('Facility Filter').first.click(timeout=10000)
+                        logging.info("Clicked 'Facility Filter' list item (text)")
+                        time.sleep(3)
+                    except Exception as e_text2:
+                        logging.warning(f"Failed to click 'Facility Filter' list item: {e_text2}")
             except Exception as e:
-                logging.warning(f"Failed to click 'Facility Filter' list item: {e}")
+                logging.warning(f"Facility Filter click sequence failed: {e}")
 
             if ending_facilities:
                 facilities_list = [f.strip() for f in ending_facilities.split(',') if f.strip()]
@@ -398,6 +465,7 @@ def download_with_playwright(login_url: str, username: str, password: str,
                         logging.warning(f"Error selecting facility {facility}: {e}")
             time.sleep(3)
 
+
         # If '(Blank)' was selected (blank_selected = True), skip Activations report and export
         # because blank means 0 activations, so send no-activations email
         if blank_selected:
@@ -407,9 +475,9 @@ def download_with_playwright(login_url: str, username: str, password: str,
 
         # Click Activations report101 button before export
         try:
-            logging.info("Looking for 'Activations report101' button...")
-            page.locator('button:has-text("Activations report101")').first.click(timeout=10000)
-            logging.info("Clicked 'Activations report101' button")
+            logging.info("Looking for 'Activations report' button...")
+            page.locator('button:has-text("Activations report")').first.click(timeout=10000)
+            logging.info("Clicked 'Activations report' button")
             time.sleep(5)  # Wait for page to load after clicking Activations report101
 
             # Look for the "Total count of activations" column header and click it
