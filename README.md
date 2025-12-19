@@ -76,9 +76,84 @@ Run `streamlit run streamlit_dashboard.py` for a web UI:
 - **Windows**: Use Task Scheduler with a batch file calling `python automation.py`.
 
 ### 5. Docker Deployment
-Build with `docker build -t pdf-automation .` and run `docker run -v /host/output:/app/output --env-file .env pdf-automation`. Uncomment Playwright install in Dockerfile if needed.
+The project includes a `Dockerfile` and `docker-compose.yml` for easy containerization.
 
-### 6. Troubleshooting
+#### Using Docker Compose (Recommended)
+1. Ensure you have a `.env` file with your configuration.
+2. Run the container with cron scheduling:
+   ```bash
+   docker-compose up -d
+   ```
+   This will build the image and start the container with cron running automatically on the 1st of each month at 6 AM.
+
+3. For manual testing:
+   ```bash
+   docker-compose run --rm automation python automation.py
+   ```
+
+#### Using Docker directly
+```bash
+# Build the image
+docker build -t pdf-monthly-automation .
+
+# Run with cron (scheduled execution)
+docker run -d --name pdf-automation --env-file .env \
+  -v $(pwd)/output:/app/output \
+  -v $(pwd)/logs:/app/logs \
+  -v $(pwd)/downloads:/app/downloads \
+  -v $(pwd)/emailtemp:/app/emailtemp \
+  pdf-monthly-automation
+
+# Run manually for testing
+docker run --rm --env-file .env \
+  -v $(pwd)/output:/app/output \
+  -v $(pwd)/logs:/app/logs \
+  -v $(pwd)/downloads:/app/downloads \
+  -v $(pwd)/emailtemp:/app/emailtemp \
+  pdf-monthly-automation python automation.py
+```
+
+The Dockerfile installs Playwright with Chromium browser and sets up cron to run the automation on the 1st of each month at 6 AM UTC.
+
+
+### 6. Server Deployment
+
+For production deployment on a server, use Docker Compose for easy management:
+
+1. **Prepare the server:**
+   - Install Docker and Docker Compose
+   - Clone your repository to the server
+   - Create a `.env` file with your production configuration
+
+2. **Deploy:**
+   ```bash
+   # Build and start the container
+   docker-compose up -d
+
+   # Check logs
+   docker-compose logs -f automation
+
+   # Stop the container
+   docker-compose down
+   ```
+
+3. **Monitoring:**
+   - Logs are stored in `./logs/cron.log` and `./logs/automation.log`
+   - The container runs cron automatically, executing the script on the 1st of each month at 6 AM UTC
+   - For different timezones, adjust the cron expression in the Dockerfile
+
+4. **Updates:**
+   ```bash
+   # Pull latest changes
+   git pull
+
+   # Rebuild and restart
+   docker-compose up -d --build
+   ```
+
+**Note:** The cron runs in UTC time. If you need a different timezone, modify the cron line in the Dockerfile (e.g., `0 6 1 * * root TZ=America/New_York cd /app && python automation.py >> /app/logs/cron.log 2>&1`).
+
+### 8. Troubleshooting
 - **Playwright Failures**: Check screenshots (e.g., `after_pdf_click.png`) for UI changes. Update selectors in `playwright_download.py`. Ensure `playwright install` ran.
 - **PDF Errors**: Verify page numbers (1-based). Test with `pdf_utils.py` functions directly.
 - **SMTP Issues**: Common error 535 means SMTP auth disabled in tenant—enable in Microsoft 365 Admin Center (https://aka.ms/smtp_auth_disabled). Use app passwords if 2FA enabled. Alternative: Switch to Gmail SMTP or Microsoft Graph API.
