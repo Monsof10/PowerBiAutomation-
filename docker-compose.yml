@@ -1,15 +1,18 @@
 version: '3.8'
+
 services:
-  pdf-automation:
+  automation:
     build: .
     container_name: pdf_monthly_automation
-    restart: unless-stopped
     volumes:
-      - ./:/app
+      - ./output:/app/output
+      - ./logs:/app/logs
+      - ./downloads:/app/downloads
+      - ./emailtemp:/app/emailtemp
+      - ./.env:/app/.env:ro  # Mount .env file as read-only
     environment:
-      - TZ=UTC
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+      - OUTPUT_DIR=/app/output
+      - LOG_FILE=/app/logs/automation.log
+    restart: unless-stopped
+    # Default command runs cron for scheduled execution
+    # For manual testing, use: docker-compose run --rm automation python automation.py
