@@ -1,60 +1,67 @@
+# Use Python 3.11 slim image
 FROM python:3.11-slim
 
-# Install system dependencies required by Playwright and cron
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    curl \
-    gnupg \
-    fonts-liberation \
-    libnss3 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    libxss1 \
-    libpangocairo-1.0-0 \
-    libgtk-3-0 \
-    cron \
-    wget \
-    build-essential \
-    pkg-config \
-    zlib1g-dev \
-    libjpeg-dev \
-    libpng-dev \
-    libfreetype6-dev \
-    liblcms2-dev \
-    libwebp-dev \
-    libopenjp2-7-dev \
-    libtiff5-dev \
- && rm -rf /var/lib/apt/lists/*
-
-# Create app directory
+# Set working directory
 WORKDIR /app
 
-# Copy project files
-COPY . /app
+# Install system dependencies for Playwright
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg \
+    ca-certificates \
+    procps \
+    curl \
+    cron \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-RUN pip install --upgrade pip setuptools wheel
-RUN if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright and browser binaries
-RUN pip install playwright || true
-RUN python -m playwright install chromium
+# Install additional system dependencies and fonts required by Playwright
+# (some font package names used by Playwright are not available on newer Debian)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        fonts-unifont \
+        fonts-liberation \
+        fonts-dejavu-core \
+        fonts-noto-color-emoji \
+        libnss3 \
+        libatk-bridge2.0-0 \
+        libgtk-3-0 \
+        libgbm1 \
+        libasound2 \
+        libx11-6 \
+        libxcomposite1 \
+        libxdamage1 \
+        libxrandr2 \
+        libpangocairo-1.0-0 \
+        libpango-1.0-0 \
+        libxss1 \
+        libxtst6 \
+        xdg-utils \
+    && rm -rf /var/lib/apt/lists/*
 
-# Add cron job
-COPY docker/cron/automation /etc/cron.d/automation
-RUN chmod 0644 /etc/cron.d/automation && crontab /etc/cron.d/automation
+# Install Playwright browsers (already have Python package installed from requirements)
+RUN playwright install chromium
 
-# Add entrypoint script
-COPY docker/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+# Copy the application code
+COPY . .
 
-ENV PYTHONUNBUFFERED=1
+# Create necessary directories
+RUN mkdir -p output logs downloads emailtemp
 
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["cron"]
+# Create a cron job to run on the 1st of every month at 6 AM
+RUN echo "0 6 1 * * root cd /app && python automation.py >> /app/logs/cron.log 2>&1" > /etc/cron.d/automation
+
+# Give execution rights on the cron job
+RUN chmod 0644 /etc/cron.d/automation
+
+# Apply cron job
+RUN crontab /etc/cron.d/automation
+
+# Create the log file to be able to run tail
+RUN touch /app/logs/cron.log
+
+# Run the command on container startup (run cron in foreground so Docker handles signals)
+CMD ["cron", "-f"]
