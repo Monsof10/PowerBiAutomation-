@@ -29,7 +29,7 @@ PLAYWRIGHT_START_DATE_SELECTOR = os.getenv("PLAYWRIGHT_START_DATE_SELECTOR", "")
 PLAYWRIGHT_END_DATE_SELECTOR = os.getenv("PLAYWRIGHT_END_DATE_SELECTOR", "")
 PLAYWRIGHT_START_CALENDAR_BUTTON = os.getenv("PLAYWRIGHT_START_CALENDAR_BUTTON", "")
 PLAYWRIGHT_END_CALENDAR_BUTTON = os.getenv("PLAYWRIGHT_END_CALENDAR_BUTTON", "")
-PLAYWRIGHT_HEADLESS = os.getenv("PLAYWRIGHT_HEADLESS", "true").lower() == "true"
+PLAYWRIGHT_HEADLESS = os.getenv("PLAYWRIGHT_HEADLESS", "false").lower() == "false"
 
 OUTPUT_DIR = os.getenv("OUTPUT_DIR", r"C:\Users\Nasef\Downloads\project folder")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -72,6 +72,20 @@ GROUP_SUBJECTS = {
 
 REMOVE_PAGES = os.getenv("REMOVE_PAGES", "")  # comma-separated indexes, e.g., "0,2"
 ENDING_FACILITIES = os.getenv("ENDING_FACILITIES", "")  # comma-separated list
+
+def get_recipients_for_group(group_num):
+    """Return a comma-separated recipient string for the given group.
+    Falls back to `EMAIL_TO` if the specific `EMAIL_GROUP_<n>` is not set.
+    Returns None if no recipients are configured.
+    """
+    env_name = f"EMAIL_GROUP_{group_num}"
+    group_val = os.getenv(env_name)
+    if group_val and group_val.strip():
+        return group_val.strip()
+    if EMAIL_TO and EMAIL_TO.strip():
+        return EMAIL_TO.strip()
+    logging.warning(f"No recipients found for group {group_num} (env {env_name} or EMAIL_TO)")
+    return None
 
 def download_via_requests(url, out_path):
     logging.info("Downloading PDF via requests: %s", url)
@@ -165,16 +179,20 @@ def run_once():
 
                     # Send email without PDF attachment
                     custom_subject = GROUP_SUBJECTS.get(group_num, f"{EMAIL_SUBJECT} - Group {group_num}")
-                    send_email_without_attachment(
-                        smtp_host=SMTP_HOST,
-                        smtp_port=SMTP_PORT,
-                        smtp_user=SMTP_USER,
-                        smtp_pass=SMTP_PASS,
-                        from_addr=EMAIL_FROM,
-                        to_addr=EMAIL_TO,
-                        subject=custom_subject,
-                        body=EMAIL_BODY_NO_ACTIVATIONS
-                    )
+                    to_addr = get_recipients_for_group(group_num)
+                    if to_addr:
+                        send_email_without_attachment(
+                            smtp_host=SMTP_HOST,
+                            smtp_port=SMTP_PORT,
+                            smtp_user=SMTP_USER,
+                            smtp_pass=SMTP_PASS,
+                            from_addr=EMAIL_FROM,
+                            to_addr=to_addr,
+                            subject=custom_subject,
+                            body=EMAIL_BODY_NO_ACTIVATIONS
+                        )
+                    else:
+                        logging.info(f"Skipping no-activations email for group {group_num} due to no recipient configuration.")
                     logging.info(f"Group {group_num} completed successfully (no activations email sent).")
                     continue  # Skip to next group
 
@@ -193,17 +211,21 @@ def run_once():
 
                 # 3) Email with custom subject including group number
                 custom_subject = GROUP_SUBJECTS.get(group_num, f"{EMAIL_SUBJECT} - Group {group_num}")
-                send_email_with_attachment(
-                    smtp_host=SMTP_HOST,
-                    smtp_port=SMTP_PORT,
-                    smtp_user=SMTP_USER,
-                    smtp_pass=SMTP_PASS,
-                    from_addr=EMAIL_FROM,
-                    to_addr=EMAIL_TO,
-                    subject=custom_subject,
-                    body=EMAIL_BODY,
-                    attachment_path=final_path
-                )
+                to_addr = get_recipients_for_group(group_num)
+                if to_addr:
+                    send_email_with_attachment(
+                        smtp_host=SMTP_HOST,
+                        smtp_port=SMTP_PORT,
+                        smtp_user=SMTP_USER,
+                        smtp_pass=SMTP_PASS,
+                        from_addr=EMAIL_FROM,
+                        to_addr=to_addr,
+                        subject=custom_subject,
+                        body=EMAIL_BODY,
+                        attachment_path=final_path
+                    )
+                else:
+                    logging.info(f"Skipping email with attachment for group {group_num} due to no recipient configuration.")
 
                 logging.info(f"Group {group_num} completed successfully.")
 
