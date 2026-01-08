@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Base paths
+# Base path
 BASE_DIR = Path(__file__).resolve().parent
 DOWNLOADS_FOLDER = BASE_DIR / os.getenv('DOWNLOADS_FOLDER', 'downloads')
 OUTPUT_FOLDER = BASE_DIR / os.getenv('OUTPUT_FOLDER', 'output')
